@@ -1,34 +1,36 @@
 # Array of filenames
 files2Process=( "YN010158.MP4" "YN030158.MP4" "YN040158.MP4" "YDXJ0160.MP4" "YN010160.MP4")
 
-files2Process=( "YN010158.MP4" )
+files2Process=( "4k30p-descarrilamento.MP4" )
 
 # First passes
 echo "########################## Starting First Passes ###########################"
 
 # Parameters
 shakiness=10 			# Set how shaky the video is and how quick the camera is. It accepts an integer in the range 1-10, a value of 1 means little shakiness, a value of 10 means strong shakiness. Default value is 5.
-stepsize=3				# Set stepsize of the search process. The region around minimum is scanned with 1 pixel resolution. Default value is 6.
+stepsize=4				# Set stepsize of the search process. The region around minimum is scanned with 1 pixel resolution. Default value is 6.
+tripod=0				# Set reference frame number for tripod mode. If enabled, the motion of the frames is compared to a reference frame in the filtered stream, identified by the specified number.
+						#	The idea is to compensate all movements in a more-or-less static scene and keep the camera view absolutely still.
+						# 	If set to 0, it is disabled. The frames are counted starting from 1.
 
 for fn in ${files2Process[@]}; do
-	ffmpeg -i ${fn} -vf vidstabdetect=result="${fn%.*}-transforms.trf":shakiness=$shakiness:stepsize=$stepsize -f null -
+	ffmpeg -i ${fn} -vf vidstabdetect=result="${fn%.*}-transforms.trf":shakiness=$shakiness:stepsize=$stepsize:tripod=$tripod -f null -
 done
-
 
 
 # Second passes
 echo "########################## Starting Second Passes ##########################"
 
 # Video Properties
-framerate=60			# Video FPS rounded to the nearest integer
+framerate=30			# Video FPS rounded to the nearest integer
 # My Parameters
-smoothTime=2			# Lowpass cutoff point in seconds
+smoothTime=20			# Lowpass cutoff point in seconds
 
 # Parameters
 optalgo="gauss"			# Set the camera path optimization algorithm
 						#	‘gauss’	: gaussian kernel low-pass filter on camera motion (default)
 						#	‘avg’	: averaging on transformations
-zoom=0					# Set percentage to zoom. A positive value will result in a zoom-in effect, a negative value in a zoom-out effect. Default value is 0 (no zoom).
+zoom=0.05				# Set percentage to zoom. A positive value will result in a zoom-in effect, a negative value in a zoom-out effect. Default value is 0 (no zoom).
 optzoom=2				# Set optimal zooming to avoid borders.
 						#	‘0’	: disabled
 						#	‘1’	: optimal static zoom value is determined (only very strong movements will lead to visible borders) (default)
@@ -48,12 +50,14 @@ crop="keep"				# Specify how to deal with borders that may be visible due to mov
 						#	‘black’	: fill the border black
 invert=0				# Invert transforms if set to 1. Default value is 0.
 relative=0				# Consider transforms as relative to previous frame if set to 1, absolute if set to 0. Default value is 0.
-tripod=0				# Enable virtual tripod mode if set to 1, which is equivalent to relative=0:smoothing=0. Default value is 0.
+tripod=0				# Enable virtual tripod mode if set to 1, which is equivalent to relative=0:smoothing=0. Default value is 0. Use also tripod option of vidstabdetect.
 
 
 # Computations
 declare -i smoothing	# Set the number of frames (value*2 + 1) used for lowpass filtering the camera movements. Default value is 10.
-						# Smooths value frames in the past and value frames in the future
+						#	For example a number of 10 means that 21 frames are used (10 in the past and 10 in the future) to smoothen the motion in the video.
+						#	A larger value leads to a smoother video, but limits the acceleration of the camera (pan/tilt movements).
+						#	0 is a special case where a static camera is simulated.
 (( smoothing = framerate * smoothTime ))
 
 
